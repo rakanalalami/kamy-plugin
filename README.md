@@ -37,7 +37,7 @@
   host's plugin-install flow:
 
   ```
-  https://github.com/rakanalalami/kamy-plugin
+  https://github.com/Kamy-Development/kamy-plugin
   ```
 
   The agent reads `.plugin/plugin.json` and loads the components automatically.
