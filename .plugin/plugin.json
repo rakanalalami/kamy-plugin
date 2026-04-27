@@ -1,0 +1,38 @@
+{
+  "$schema": "https://open-plugins.com/schema/plugin.json",
+  "name": "kamy",
+  "displayName": "Kamy — PDF Generation",
+  "version": "1.0.0",
+  "description": "Generate beautiful, production-ready PDFs (invoices, receipts, contracts, reports) from your AI coding agent. Wraps the Kamy PDF API and exposes a skill, rules, an agent, and an MCP server so any Open-Plugins-compatible tool can spin up a PDF pipeline in seconds.",
+  "homepage": "https://kamy.dev",
+  "repository": "https://github.com/rakanalalami/kamy-plugin",
+  "license": "MIT",
+  "author": {
+    "name": "Kamy",
+    "url": "https://kamy.dev"
+  },
+  "keywords": [
+    "pdf",
+    "pdf-generation",
+    "invoices",
+    "receipts",
+    "contracts",
+    "reports",
+    "html-to-pdf",
+    "handlebars",
+    "templates",
+    "documents"
+  ],
+  "components": {
+    "skills": [
+      "skills/kamy"
+    ],
+    "rules": [
+      "rules/kamy-sdk.mdc"
+    ],
+    "agents": [
+      "agents/pdf-template-author.md"
+    ],
+    "mcp": ".mcp.json"
+  }
+}

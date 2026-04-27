@@ -1,0 +1,13 @@
+{
+  "$schema": "https://open-plugins.com/schema/mcp.json",
+  "mcpServers": {
+    "kamy": {
+      "type": "http",
+      "url": "https://mcp.kamy.dev",
+      "description": "Kamy PDF generation MCP server. Exposes tools for rendering PDFs, listing templates, and inspecting recent renders. Authenticate with a Kamy API key from https://kamy.dev/dashboard/keys passed as `Authorization: Bearer <key>`.",
+      "headers": {
+        "Authorization": "Bearer ${KAMY_API_KEY}"
+      }
+    }
+  }
+}
