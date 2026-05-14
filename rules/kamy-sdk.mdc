@@ -1,6 +1,6 @@
 ---
 name: kamy-sdk
-description: Conventions for generating PDFs from agent-written code using the @kamydev/sdk client and the Kamy REST API.
+description: Conventions for generating PDFs from agent-written code using the @kamydev/sdk client and the Kamy REST API, and for sending them for e-signature with optional OTP identity verification, sender-chosen placement, and Certificate of Completion audit trails.
 globs:
   - "**/*.ts"
   - "**/*.tsx"
@@ -12,6 +12,10 @@ appliesTo:
   - "receipts"
   - "contracts"
   - "reports"
+  - "e-signature"
+  - "signatures"
+  - "nda"
+  - "signing"
 ---
 
 # Kamy SDK conventions
@@ -92,6 +96,103 @@ await kamy.render(
 );
 ```
 
+## E-signatures
+
+Once a PDF is rendered, you can send it for signature in one call.
+Kamy returns a `sign_url` you can email yourself or hand back to
+the user; Kamy emails the signer automatically when the project has
+Resend configured.
+
+```ts
+const render = await kamy.render({ template: "contract", data: { /* ... */ } });
+
+const sig = await kamy.signatures.create({
+  renderId: render.id,
+  signerEmail: "alice@example.com",
+  signerName: "Alice Doe",
+  message: "Please review and sign by Friday.",
+});
+
+console.log(sig.sign_url);
+```
+
+### Identity verification (`authMethod`)
+
+For higher-value transactions, gate the sign page behind a 6-digit
+OTP. Default is `link` (URL possession only). Prefer `email_otp` for
+contracts / NDAs / offer letters — it adds an inbox-control step
+without requiring Twilio credentials.
+
+```ts
+await kamy.signatures.create({
+  renderId: render.id,
+  signerEmail: "alice@example.com",
+  signerName: "Alice Doe",
+  authMethod: "email_otp",        // link | email_otp | sms_otp
+  // signerPhone: "+14155551234", // E.164 — required only for sms_otp
+});
+```
+
+### Sender-chosen placement
+
+Anchor the signature with `position` (PDF points, origin bottom-
+left). Omit to default to bottom-right of the last page and let the
+signer drag the placeholder.
+
+```ts
+position: { page: 3, x: 360, y: 80, w: 220, h: 64 }
+```
+
+### Other knobs
+
+- `ccEmails`: up to 10 observers CC'd on invite + completion.
+- `expiresIn`: seconds (3600–2592000); default 30 days.
+- `reminderCadenceHours`: 24–168 — auto-remind every N hours while
+  pending, up to 3 reminders.
+- `signOnEveryPage`: stamp the signature on every page (B2B
+  contracts).
+- `requireStamp`: require a corporate stamp / seal alongside the
+  signature (UAE, KSA, JP, KR, IN, CN workflows).
+- `placedFields`: up to 100 sender-defined fillable fields stamped
+  onto flat PDFs (text, textarea, checkbox, date, initials, radio,
+  dropdown).
+- `signatureTemplateId`: apply a saved signature template's
+  defaults; request-level fields override.
+
+### Lifecycle
+
+```ts
+await kamy.signatures.remind(id);   // one per hour per request
+await kamy.signatures.void(id);     // only while pending
+await kamy.signatures.get(id);
+await kamy.signatures.list({ limit: 50 });
+
+// Fan one render out to 1-100 signers in a single request:
+await kamy.signatures.bulk({
+  renderId: render.id,
+  signers: [
+    { signerEmail: "a@example.com", signerName: "A. Example" },
+    { signerEmail: "b@example.com", signerName: "B. Example" },
+  ],
+  message: "Hi {{signerName}} — please review.",
+});
+```
+
+### Verification + audit trail (two artefacts)
+
+- `https://kamy.dev/verify/<sha256>` — cryptographic attestation
+  bound to the signed PDF bytes. "Is this document Kamy-sealed?" If
+  the bytes have been modified, the hash won't match.
+- `GET /api/v1/signatures/{id}/certificate` — process audit trail
+  (invite → opened → consent → signed, with IP / user-agent). What
+  legal / compliance teams ask for. Available on every terminal
+  state (signed, declined, delegated, voided, expired); pending /
+  preview rows return 409.
+
+A token-authed sibling at `/api/sign/{token}/certificate` lets the
+signer (or anyone with the sign link) grab the same certificate —
+it's linked from the post-signing confirmation email automatically.
+
 ## What NOT to do
 
 - Don't poll `/v1/renders/:id` — the render endpoint blocks until
@@ -101,3 +202,10 @@ await kamy.render(
   `kamy.renders.get(id)` when needed.
 - Don't use the live API key on the client. The SDK ships with a
   Node-only transport for that reason.
+- Don't send `signerPhone` unless `authMethod: "sms_otp"` — the
+  field is ignored for `link` / `email_otp` and the request will
+  validate even when the phone is meaningless.
+- Don't expose the API-key certificate endpoint to unauthenticated
+  users — use the token-auth sibling at
+  `/api/sign/{token}/certificate` if the signer needs access without
+  an API key.
